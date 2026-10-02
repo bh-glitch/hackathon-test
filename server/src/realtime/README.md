@@ -28,6 +28,7 @@ Run from the repository root on Node 22 (minimum 22.12.0):
 
 ```sh
 node --import tsx --test server/src/realtime/index.test.ts
+node --import tsx --test client/src/lib/room-connection.test.ts
 npm run build
 ```
 
@@ -35,9 +36,24 @@ The 11 realtime tests use actual WebSocket/polling connections and an in-memory
 implementation of the database interface. The restart test reuses that store;
 SQLite persistence itself remains Arnav's responsibility.
 
-Bhavya's root `npm test` script currently only discovers `tests/*.test.ts`.
-It needs to include this module's tests during integration. Its scaffold
-transport test expects an unauthenticated connection and placeholder join error;
-that expectation must be updated for verified sessions. The database and HTTP
-session routes on this branch remain scaffold stubs, so the full app is waiting
-on Arnav's module and Bhavya's client integration.
+The client now connects the existing UI through `App.tsx` and
+`client/src/lib/room-connection.ts`: room creation, session bootstrap, joins,
+live events, reconnect/rejoin, snapshot buffering, draft retention, and retries.
+Display names are saved per room and verified user ID so refresh can rejoin.
+Client message IDs use `crypto.getRandomValues`, which works on HTTP Wi-Fi URLs.
+Arnav's database and routes are included in the branch. The root smoke test now
+exercises actual session, room and message persistence rather than placeholders.
+
+Five client controller tests cover event buffering, ordered message merging,
+stale acknowledgements, reconnects, retries and listener cleanup. The root
+`npm test` script still only discovers `tests/*.test.ts`; run all feature tests
+explicitly until Bhavya updates shared test configuration:
+
+```sh
+node --import tsx --test tests/*.test.ts server/src/db/*.test.ts server/src/routes/*.test.ts server/src/realtime/*.test.ts client/src/lib/*.test.ts
+```
+
+Browser verification covered independent users chatting, refresh, multiple tabs,
+offline presence, room isolation, failed saves, lost acknowledgements, and server
+restart with persistent SQLite history and draft recovery. The four-device
+Wi-Fi/firewall demo remains a separate acceptance check.

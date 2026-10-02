@@ -9,7 +9,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return response.json() as Promise<T>;
 }
-export const createSession = () => request<SessionResponse>('/api/session', { method: 'POST' });
+let sessionRequest: Promise<SessionResponse> | null = null;
+/** Share in-flight bootstrap calls, including React StrictMode's repeated effects. */
+export function createSession(): Promise<SessionResponse> {
+  sessionRequest ??= request<SessionResponse>('/api/session', { method: 'POST' })
+    .finally(() => { sessionRequest = null; });
+  return sessionRequest;
+}
 export const createRoom = (input: CreateRoomRequest) => request<Room>('/api/rooms', {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
 });
