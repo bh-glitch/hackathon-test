@@ -6,11 +6,16 @@ A minimal dark group chat. People open a room link, enter a display name, and ch
 
 Confirmed product decisions: one shared app backed by one server and one database; anyone using the app can create a room and share its link; participants enter a display name with no account or signup. Every computer can create and join rooms through this shared app. Bhavya's computer is the proposed server host, not a requirement that only Bhavya can create rooms. Another computer can run the shared server if the team chooses it.
 
-Pending confirmation: whether disconnected members remain visible with grey dots, and whether access must extend beyond local Wi-Fi. The implementation below currently assumes retained offline members and local-network access; confirm these before implementing the relevant behavior.
+Confirmed MVP decisions for this test run:
+
+- Retain disconnected members in the sidebar with grey offline dots.
+- Limit access to devices on the same local Wi-Fi.
+- Display names must be 1–40 characters after trimming.
+- Use Node.js 22 on all four computers.
 
 ## Stack and runtime
 
-React, Vite, TypeScript, Tailwind CSS; Node.js, Express, Socket.IO, SQLite. Use npm and agree on one supported Node version at kickoff. No cloud services are required for the local demo.
+React, Vite, TypeScript, Tailwind CSS; Node.js, Express, Socket.IO, SQLite. Use npm and Node.js 22 on all four computers (minimum 22.12.0 for this scaffold). No cloud services are required for the local demo.
 
 GitHub shares source code. It does not run the backend or synchronize chat messages. During development, each person can run an independent local server. During the four-computer demo, everyone uses ONE server and its ONE SQLite database on Bhavya's computer. Do not put the database file in Git or run it from a shared network folder.
 
@@ -26,6 +31,84 @@ GitHub shares source code. It does not run the backend or synchronize chat messa
 Bhavya is the proposed integration lead and demo host. Swap names if preferred, but keep one owner per area. Tests sit next to the owning module; Bhavya owns cross-module integration tests.
 
 Only Bhavya edits shared types, dependency manifests, lockfiles and shared configuration. Other agents request changes in their GitHub issue. This avoids four agents independently changing the foundation.
+
+## Scaffold quick start and handoff
+
+The confirmed runtime is **Node 22.x on all four computers, minimum 22.12.0**
+for this scaffold. Bhavya tested on 22.12.0 (`.nvmrc` pins that version);
+use a current patched Node 22 release within the confirmed major version.
+Run all commands from the repository root:
+
+```sh
+npm ci
+cp .env.example .env  # optional; defaults work without this file
+npm run dev          # Express/Socket.IO :3000, Vite :5173
+npm run check        # typecheck, integration smoke tests, production build
+npm run build
+npm start            # one Express/Socket.IO server serving dist/client on :3000
+```
+
+Development: open `http://localhost:5173`. Vite proxies `/api` and `/socket.io`
+(including WebSocket upgrades) to `API_PROXY_TARGET`, defaulting to
+`http://127.0.0.1:3000`. Clients use relative URLs, including on other devices.
+Production: open `http://localhost:3000`; `/room/:roomId` serves the SPA.
+`HOST`, `PORT`, and `DATABASE_PATH` are server settings in `.env.example`.
+The host binding is configurable; listening on `0.0.0.0` alone does not establish
+or test device-to-device Wi-Fi/firewall access. This test run is limited to
+the same local Wi-Fi; access beyond that network is outside its scope.
+`/api/health` reports `stage: scaffold` and does not claim that persistence or
+chat is ready.
+
+### Fixed handoff contracts
+
+- `shared/types.ts`: data, HTTP payloads, acknowledgements, typed Socket.IO
+  events and server-only socket identity. HTTP success bodies are plain
+  `Room`/`SessionResponse`; HTTP failures use `{ error: string }` with a non-2xx
+  status. Socket acknowledgements use `Ack<T>`.
+- `shared/components.ts`: Ishan's four controlled component props. App owns
+  the display name, draft, connection status and send/retry orchestration.
+  `onJoin()` and `onSend()` are callbacks; errors arrive via props.
+- `shared/database.ts`: Arnav's asynchronous `RoomDatabase` and `SessionStore`.
+  `getRoom`/`getSession` return `null` when absent; failed operations reject.
+  Database implementation generates IDs/timestamps. `saveMessage` returns the
+  original message for a duplicate `(roomId, senderId, clientMessageId)`.
+  Stored members contain no online flag. Session IDs are random credentials,
+  distinct from public user IDs, persisted through server restarts.
+- Arnav: replace `server/src/db/index.ts`'s `openDatabase(path): Database` and
+  `server/src/routes/index.ts`'s `createApiRouter(dependencies): Router`.
+  Route paths are relative to the `/api` mount. Add SQLite schema/migrations,
+  persistent session verification and HttpOnly cookies, and database tests.
+  The `better-sqlite3` dependency is pinned to tested version 12.4.1; version
+  13.0.3 crashed when opening a database on Node 22.12.0 on this Mac.
+  The stub creates no file/schema.
+- Vansh: replace `server/src/realtime/index.ts`'s
+  `initializeRealtime(io, dependencies): void`. Verify the cookie through
+  `dependencies.sessions.getSession` before assigning `socket.data.userId`.
+  Add membership validation, durable sends, deduplication and multi-tab
+  presence. Retain saved members after disconnect or leave and emit them as
+  offline once their last socket leaves. Trim display names and enforce the
+  confirmed 1–40-character limit on the server. Use `SESSION_COOKIE_NAME`
+  from the shared contract.
+- Ishan: replace named exports in `client/src/components/` and styles in
+  `client/src/styles/`. All four placeholders are wired into App, with joining
+  and sending disabled until integration. Show retained offline members with
+  grey dots and online members with green dots. Use the confirmed trimmed
+  display-name limit for form feedback. Keep the exported props stable.
+- Bhavya: after feature PRs, wire room creation, anonymous session bootstrap,
+  joins/rejoins, buffered history merge, message retries and loading/error
+  state in App/lib. No demo-ready chat flow exists in this scaffold.
+
+All feature modules deliberately remain placeholders: HTTP feature routes
+return 501, socket requests return failed acknowledgements, and the database
+stub rejects. Production wiring, frontend assets and the transport run, but
+sessions, rooms, messages, history and presence are **not implemented**.
+The smoke tests cover that wiring and native SQLite availability, not feature
+acceptance. The final four-device demo checklist remains outstanding.
+
+The four MVP decisions above are confirmed; no clarification remains for
+these handoffs. Their feature behavior remains for the assigned owners to
+implement. The existing `PROPOSED_MAX_DISPLAY_NAME_LENGTH` export retains its
+name for handoff compatibility, but its value of 40 is now the confirmed limit.
 
 ## Before parallel work
 
@@ -77,7 +160,7 @@ Socket.IO, with acknowledgements for client requests:
 - Server emits participants:update with { roomId, participants: Participant[] }.
 - Client sends room:leave { roomId }; ack returns Ack<null>.
 
-The server derives senderId from the session, checks room membership, validates inputs and limits text to 2,000 characters. Never trust a sender identity supplied in message payloads. Proposed display-name limit: 1–40 characters after trimming.
+The server derives senderId from the session, checks room membership, validates inputs and limits text to 2,000 characters. Never trust a sender identity supplied in message payloads. Display names must be 1–40 characters after trimming; enforce this on the server.
 
 Store rooms, room_members and messages in SQLite. Store clientMessageId and enforce uniqueness per sender and room, so retrying the same send returns the original saved message rather than creating a duplicate. Database code exports createRoom, getRoom, upsertMember, listMembers, listMessages and saveMessage; Bhavya fixes their TypeScript signatures in the scaffold. Online state lives in the realtime layer, not a stale database boolean.
 
@@ -113,6 +196,7 @@ Bhavya's initial agent task is to create the scaffold and interfaces; its next t
 
 ## Final demo checklist
 
+- Use Node.js 22 on all four computers and connect them to the same local Wi-Fi.
 - Build and run the combined app on Bhavya's computer, listening on 0.0.0.0:3000. Permit access through the host firewall.
 - Other devices open http://HOST_LOCAL_IP:3000/room/ROOM_ID. They must not use localhost, which points at their own computer.
 - Confirm the Wi-Fi allows device-to-device communication; guest networks may block it.
