@@ -29,6 +29,7 @@ export type InterServerEvents = Record<string, never>;
 export type SocketData = { userId?: string };
 export type ConnectionStatus = 'idle' | 'connecting' | 'joined' | 'reconnecting' | 'error';
 export const MAX_MESSAGE_LENGTH = 2_000;
-/** Proposed limit; confirm before implementing validation. */
+/** Confirmed: display names must be 1–40 characters after trimming.
+ * Export name retained for compatibility with the initial scaffold handoff. */
 export const PROPOSED_MAX_DISPLAY_NAME_LENGTH = 40;
 export const SESSION_COOKIE_NAME = 'study_room_session';
