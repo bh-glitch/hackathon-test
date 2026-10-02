@@ -56,7 +56,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { box-shadow: 
   border-radius: 1rem 1rem 0 0;
 }
 
-.message-panel__header, .participant-sidebar__header {
+.message-panel__header, .participant-sidebar__toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -65,7 +65,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { box-shadow: 
   border-bottom: 1px solid #20283a;
 }
 
-.message-panel__header h2, .participant-sidebar__header h2, .join-card h2 {
+.message-panel__header h2, .participant-sidebar__toggle h2, .join-card h2 {
   margin: 0;
   color: #f8fafc;
   font-size: 1rem;
@@ -270,11 +270,87 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { box-shadow: 
 .character-count--error { color: #fca5a5; }
 
 .participant-sidebar {
-  display: flex;
-  min-height: 25rem;
-  flex-direction: column;
+  align-self: start;
   overflow: hidden;
   border-radius: 1rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.participant-sidebar--open {
+  border-color: #2b3952;
+}
+
+.participant-sidebar__toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.participant-sidebar__toggle:hover {
+  background: #111827;
+}
+
+.participant-sidebar__toggle:focus-visible {
+  position: relative;
+  z-index: 1;
+  border-radius: 1rem;
+}
+
+.participant-toggle__summary {
+  display: block;
+  margin-top: 0.22rem;
+  color: #718096;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.participant-toggle__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.participant-chevron {
+  color: #94a3b8;
+  font-size: 1.2rem;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 180ms ease;
+}
+
+.participant-sidebar--open .participant-chevron {
+  transform: rotate(180deg);
+}
+
+.connection-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.connection-dot--joined {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgb(34 197 94 / 10%);
+}
+
+.connection-dot--connecting, .connection-dot--reconnecting {
+  background: #f59e0b;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.connection-dot--error {
+  background: #f87171;
+}
+
+.participant-dropdown {
+  display: flex;
+  min-height: 20rem;
+  flex-direction: column;
+  border-top: 1px solid #20283a;
 }
 
 .participant-summary { margin: 0; padding: 0.85rem 1.25rem 0.25rem; color: #718096; font-size: 0.72rem; }

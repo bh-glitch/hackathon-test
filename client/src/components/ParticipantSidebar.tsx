@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ParticipantSidebarProps } from '../../../shared/components';
 import type { ConnectionStatus } from '../../../shared/types';
 
@@ -10,6 +11,7 @@ const statusCopy: Record<ConnectionStatus, { label: string; detail: string }> = 
 };
 
 export function ParticipantSidebar({ participants, currentUserId, status }: ParticipantSidebarProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const onlineCount = participants.filter((participant) => participant.online).length;
   const connection = statusCopy[status];
   const sortedParticipants = [...participants].sort((left, right) => {
@@ -18,48 +20,63 @@ export function ParticipantSidebar({ participants, currentUserId, status }: Part
   });
 
   return (
-    <aside className="participant-sidebar" aria-label="Room participants">
-      <div className="participant-sidebar__header">
+    <aside className={`participant-sidebar ${isOpen ? 'participant-sidebar--open' : 'participant-sidebar--collapsed'}`} aria-label="Room participants">
+      <button
+        className="participant-sidebar__toggle"
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls="participant-dropdown"
+        onClick={() => setIsOpen((open) => !open)}
+      >
         <div>
           <p className="eyebrow">Study group</p>
           <h2>Participants</h2>
+          <span className="participant-toggle__summary">{onlineCount} online</span>
         </div>
-        <span className="participant-total">{participants.length}</span>
-      </div>
-
-      <p className="participant-summary">{onlineCount} online · {participants.length - onlineCount} offline</p>
-
-      <ul className="participant-list">
-        {sortedParticipants.map((participant) => {
-          const isCurrentUser = participant.userId === currentUserId;
-          return (
-            <li key={participant.userId} className={!participant.online ? 'participant participant--offline' : 'participant'}>
-              <span className="avatar" aria-hidden="true">{participant.displayName.trim().charAt(0).toUpperCase() || '?'}</span>
-              <span className="participant__identity">
-                <span className="participant__name">
-                  {participant.displayName}{isCurrentUser && <span className="you-label">You</span>}
-                </span>
-                <span className="participant__presence">
-                  <span className={`presence-dot ${participant.online ? 'presence-dot--online' : ''}`} aria-hidden="true" />
-                  {participant.online ? 'Online' : 'Offline'}
-                </span>
-              </span>
-            </li>
-          );
-        })}
-
-        {participants.length === 0 && (
-          <li className="participant-list__empty">Participants will appear here after they join.</li>
-        )}
-      </ul>
-
-      <div className={`connection-card connection-card--${status}`} role="status" aria-live="polite">
-        <span className="connection-card__indicator" aria-hidden="true" />
-        <span>
-          <strong>{connection.label}</strong>
-          <small>{connection.detail}</small>
+        <span className="participant-toggle__actions">
+          <span className={`connection-dot connection-dot--${status}`} aria-hidden="true" />
+          <span className="participant-total">{participants.length}</span>
+          <span className="participant-chevron" aria-hidden="true">⌄</span>
         </span>
-      </div>
+      </button>
+
+      {isOpen && (
+        <div className="participant-dropdown" id="participant-dropdown">
+          <p className="participant-summary">{onlineCount} online · {participants.length - onlineCount} offline</p>
+
+          <ul className="participant-list">
+            {sortedParticipants.map((participant) => {
+              const isCurrentUser = participant.userId === currentUserId;
+              return (
+                <li key={participant.userId} className={!participant.online ? 'participant participant--offline' : 'participant'}>
+                  <span className="avatar" aria-hidden="true">{participant.displayName.trim().charAt(0).toUpperCase() || '?'}</span>
+                  <span className="participant__identity">
+                    <span className="participant__name">
+                      {participant.displayName}{isCurrentUser && <span className="you-label">You</span>}
+                    </span>
+                    <span className="participant__presence">
+                      <span className={`presence-dot ${participant.online ? 'presence-dot--online' : ''}`} aria-hidden="true" />
+                      {participant.online ? 'Online' : 'Offline'}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+
+            {participants.length === 0 && (
+              <li className="participant-list__empty">Participants will appear here after they join.</li>
+            )}
+          </ul>
+
+          <div className={`connection-card connection-card--${status}`} role="status" aria-live="polite">
+            <span className="connection-card__indicator" aria-hidden="true" />
+            <span>
+              <strong>{connection.label}</strong>
+              <small>{connection.detail}</small>
+            </span>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
