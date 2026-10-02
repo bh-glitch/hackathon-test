@@ -27,6 +27,77 @@ Bhavya is the proposed integration lead and demo host. Swap names if preferred, 
 
 Only Bhavya edits shared types, dependency manifests, lockfiles and shared configuration. Other agents request changes in their GitHub issue. This avoids four agents independently changing the foundation.
 
+## Scaffold quick start and handoff
+
+The initial scaffold targets **Node 22.x, minimum 22.12.0**, matching Bhavya's
+installed runtime (`.nvmrc` pins 22.12.0). Confirm this baseline with the team;
+use a current patched Node 22 release for the shared server. Run all commands
+from the repository root:
+
+```sh
+npm ci
+cp .env.example .env  # optional; defaults work without this file
+npm run dev          # Express/Socket.IO :3000, Vite :5173
+npm run check        # typecheck, integration smoke tests, production build
+npm run build
+npm start            # one Express/Socket.IO server serving dist/client on :3000
+```
+
+Development: open `http://localhost:5173`. Vite proxies `/api` and `/socket.io`
+(including WebSocket upgrades) to `API_PROXY_TARGET`, defaulting to
+`http://127.0.0.1:3000`. Clients use relative URLs, including on other devices.
+Production: open `http://localhost:3000`; `/room/:roomId` serves the SPA.
+`HOST`, `PORT`, and `DATABASE_PATH` are server settings in `.env.example`.
+The host binding is configurable; listening on `0.0.0.0` alone does not establish
+or test Wi-Fi/firewall/internet access. `/api/health` reports `stage: scaffold`
+and does not claim that persistence or chat is ready.
+
+### Fixed handoff contracts
+
+- `shared/types.ts`: data, HTTP payloads, acknowledgements, typed Socket.IO
+  events and server-only socket identity. HTTP success bodies are plain
+  `Room`/`SessionResponse`; HTTP failures use `{ error: string }` with a non-2xx
+  status. Socket acknowledgements use `Ack<T>`.
+- `shared/components.ts`: Ishan's four controlled component props. App owns
+  the display name, draft, connection status and send/retry orchestration.
+  `onJoin()` and `onSend()` are callbacks; errors arrive via props.
+- `shared/database.ts`: Arnav's asynchronous `RoomDatabase` and `SessionStore`.
+  `getRoom`/`getSession` return `null` when absent; failed operations reject.
+  Database implementation generates IDs/timestamps. `saveMessage` returns the
+  original message for a duplicate `(roomId, senderId, clientMessageId)`.
+  Stored members contain no online flag. Session IDs are random credentials,
+  distinct from public user IDs, persisted through server restarts.
+- Arnav: replace `server/src/db/index.ts`'s `openDatabase(path): Database` and
+  `server/src/routes/index.ts`'s `createApiRouter(dependencies): Router`.
+  Route paths are relative to the `/api` mount. Add SQLite schema/migrations,
+  persistent session verification and HttpOnly cookies, and database tests.
+  The `better-sqlite3` dependency is pinned to tested version 12.4.1; version
+  13.0.3 crashed when opening a database on Node 22.12.0 on this Mac.
+  The stub creates no file/schema.
+- Vansh: replace `server/src/realtime/index.ts`'s
+  `initializeRealtime(io, dependencies): void`. Verify the cookie through
+  `dependencies.sessions.getSession` before assigning `socket.data.userId`.
+  Add membership validation, durable sends, deduplication and multi-tab
+  presence. Use `SESSION_COOKIE_NAME` from the shared contract.
+- Ishan: replace named exports in `client/src/components/` and styles in
+  `client/src/styles/`. All four placeholders are wired into App, with joining
+  and sending disabled until integration. Keep the exported props stable.
+- Bhavya: after feature PRs, wire room creation, anonymous session bootstrap,
+  joins/rejoins, buffered history merge, message retries and loading/error
+  state in App/lib. No demo-ready chat flow exists in this scaffold.
+
+All feature modules deliberately remain placeholders: HTTP feature routes
+return 501, socket requests return failed acknowledgements, and the database
+stub rejects. Production wiring, frontend assets and the transport run, but
+sessions, rooms, messages, history and presence are **not implemented**.
+The smoke tests cover that wiring and native SQLite availability, not feature
+acceptance. The final four-device demo checklist remains outstanding.
+
+Before behavior implementation, confirm retained offline members versus
+removal, local-Wi-Fi-only versus internet access, the proposed 1–40-character
+trimmed display-name limit, and the Node baseline. No pending presence or
+internet-access behavior is implemented by the scaffold.
+
 ## Before parallel work
 
 Bhavya's agent first creates and merges a small scaffold containing:
