@@ -36,12 +36,14 @@ export function ParticipantSidebar({ participants, currentUserId, status }: Part
         <span className="participant-toggle__actions">
           <span className={`connection-dot connection-dot--${status}`} aria-hidden="true" />
           <span className="participant-total">{participants.length}</span>
-          <span className="participant-chevron" aria-hidden="true">⌄</span>
+          <svg className="participant-chevron" viewBox="0 0 20 20" aria-hidden="true">
+            <path d="m5 7.5 5 5 5-5" />
+          </svg>
         </span>
       </button>
 
-      {isOpen && (
-        <div className="participant-dropdown" id="participant-dropdown">
+      <div className="participant-dropdown" id="participant-dropdown" aria-hidden={!isOpen}>
+        <div className="participant-dropdown__inner">
           <p className="participant-summary">{onlineCount} online · {participants.length - onlineCount} offline</p>
 
           <ul className="participant-list">
@@ -76,7 +78,7 @@ export function ParticipantSidebar({ participants, currentUserId, status }: Part
             </span>
           </div>
         </div>
-      )}
+      </div>
     </aside>
   );
 }
